@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>祝福语动画</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #ffd1dc; /* 粉色背景 */
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .blessing {
+            position: absolute;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: all 1.5s ease-out;
+            cursor: pointer;
+            z-index: 1;
+            user-select: none;
+        }
+
+        /* 爱心模式下的祝福语样式 */
+        .blessing.heart-mode {
+            width: 80px;
+            height: 60px;
+            font-size: 12px;
+        }
+
+        /* 圆形前进模式下的祝福语样式 - 更大 */
+        .blessing.circle-mode {
+            width: 100px;
+            height: 75px;
+            font-size: 14px;
+        }
+
+        .blessing:hover {
+            transform: scale(1.2);
+            z-index: 10;
+        }
+
+        .title {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #d63384;
+            font-size: 24px;
+            z-index: 100;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.7);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            opacity: 0.8;
+            z-index: 2;
+        }
+
+        @keyframes particle-animation {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes circle-move {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container"></div>
+
+    <script>
+        // 祝福语数组
+        const blessings = [
+            "祝你快乐", "幸福安康", "心想事成", "万事如意", 
+            "笑口常开", "天天开心", "好运连连", "前程似锦",
+            "健康平安", "财源滚滚", "事业有成", "爱情甜蜜",
+            "阖家欢乐", "青春永驻", "梦想成真", "友谊长存",
+            "学业进步", "工作顺利", "步步高升", "一帆风顺",
+            "平安喜乐", "无忧无虑", "幸福美满", "心想事成",
+            "天天向上", "美梦成真", "福星高照", "喜气洋洋",
+            "年年有余", "大吉大利", "金玉满堂", "花开富贵",
+            "喜气盈门", "瑞气盈门", "福满人间", "吉祥如意",
+            "幸福安康", "健康长寿", "笑口常开", "好运常伴",
+            "心想事成", "万事顺意", "平安快乐", "阖家幸福"
+        ];
+
+        // 颜色数组
+        const colors = [
+            "#FFB6C1", "#FF69B4", "#FF1493", "#C71585", 
+            "#DB7093", "#FFC0CB", "#FFD700", "#FFA500",
+            "#FF8C00", "#FF7F50", "#FF6347", "#FF4500",
+            "#FFDAB9", "#E6E6FA", "#D8BFD8", "#DDA0DD",
+            "#EE82EE", "#DA70D6", "#BA55D3", "#9370DB",
+            "#8A2BE2", "#9400D3", "#9932CC", "#8B008B",
+            "#800080", "#4B0082", "#6A5ACD", "#483D8B",
+            "#FF69B4", "#FF1493", "#C71585", "#DB7093",
+            "#FFC0CB", "#FFD700", "#FFA500", "#FF8C00"
+        ];
+
+        // 模式变量
+        let currentMode = 1; // 1: 爱心模式, 2: 圆形前进模式
+        let circleInterval; // 圆形前进模式的定时器
+
+        // 爱心形状的坐标点
+        function heartPoints(count) {
+            const points = [];
+            for (let i = 0; i < count; i++) {
+                const t = i / count * 2 * Math.PI;
+                // 爱心参数方程
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                points.push({x, y});
+            }
+            return points;
+        }
+
+        // 创建祝福语元素
+        function createBlessings() {
+            const container = document.getElementById('container');
+            container.innerHTML = '';
+            
+            const count = blessings.length;
+            const heartPositions = heartPoints(count);
+            
+            // 计算缩放和偏移，使爱心居中并适合屏幕
+            const scale = Math.min(window.innerWidth, window.innerHeight) / 40;
+            const offsetX = window.innerWidth / 2;
+            const offsetY = window.innerHeight / 2;
+            
+            blessings.forEach((blessing, index) => {
+                const element = document.createElement('div');
+                element.className = 'blessing heart-mode';
+                element.textContent = blessing;
+                element.style.backgroundColor = colors[index % colors.length];
+                element.style.color = '#fff';
+                element.style.textShadow = '1px 1px 2px rgba(0,0,0,0.5)';
+                
+                // 设置初始位置（随机位置）
+                const startX = Math.random() * window.innerWidth;
+                const startY = Math.random() * window.innerHeight;
+                element.style.left = startX + 'px';
+                element.style.top = startY + 'px';
+                
+                // 为每个祝福语添加鼠标悬浮事件
+                let particleInterval;
+                element.addEventListener('mouseenter', function() {
+                    // 鼠标进入时开始产生粒子
+                    particleInterval = setInterval(() => {
+                        createParticles(this, this.style.backgroundColor);
+                    }, 300); // 每300毫秒产生一次粒子
+                });
+                
+                element.addEventListener('mouseleave', function() {
+                    // 鼠标离开时停止产生粒子
+                    clearInterval(particleInterval);
+                });
+                
+                container.appendChild(element);
+                
+                // 延迟执行动画
+                setTimeout(() => {
+                    // 计算爱心上的位置
+                    const heartPos = heartPositions[index];
+                    const finalX = offsetX + heartPos.x * scale;
+                    const finalY = offsetY - heartPos.y * scale;
+                    
+                    element.style.left = finalX + 'px';
+                    element.style.top = finalY + 'px';
+                    element.style.opacity = 1;
+                }, 100 + index * 100); // 每个祝福语间隔100ms出现
+            });
+        }
+
+        // 创建圆形前进模式的祝福语
+        function createCircleBlessings() {
+            const container = document.getElementById('container');
+            container.innerHTML = '';
+            
+            // 清除之前的定时器
+            if (circleInterval) {
+                clearInterval(circleInterval);
+            }
+            
+            // 设置定时器，定期创建新的圆形祝福语组
+            circleInterval = setInterval(() => {
+                // 创建一组圆形排列的祝福语
+                const groupCount = 8; // 每组8个祝福语，围成一个圆
+                const radius = 150; // 圆的半径
+                
+                // 创建组容器
+                const group = document.createElement('div');
+                group.style.position = 'absolute';
+                group.style.left = `${Math.random() * (window.innerWidth - 300) + 150}px`;
+                group.style.top = `${window.innerHeight + 200}px`;
+                group.style.width = `${radius * 2}px`;
+                group.style.height = `${radius * 2}px`;
+                
+                // 为整个组添加动画
+                group.style.animation = `circle-move 8s linear forwards`;
+                
+                for (let i = 0; i < groupCount; i++) {
+                    const blessingIndex = Math.floor(Math.random() * blessings.length);
+                    const colorIndex = Math.floor(Math.random() * colors.length);
+                    
+                    const element = document.createElement('div');
+                    element.className = 'blessing circle-mode';
+                    element.textContent = blessings[blessingIndex];
+                    element.style.backgroundColor = colors[colorIndex];
+                    element.style.color = '#fff';
+                    element.style.textShadow = '1px 1px 2px rgba(0,0,0,0.5)';
+                    
+                    // 计算圆形位置
+                    const angle = (i / groupCount) * 2 * Math.PI;
+                    const x = radius * Math.cos(angle);
+                    const y = radius * Math.sin(angle);
+                    
+                    element.style.left = `${radius + x - 50}px`; // 50是元素宽度的一半
+                    element.style.top = `${radius + y - 37.5}px`; // 37.5是元素高度的一半
+                    element.style.opacity = '1';
+                    
+                    // 为每个祝福语添加鼠标悬浮事件
+                    let particleInterval;
+                    element.addEventListener('mouseenter', function() {
+                        // 鼠标进入时开始产生粒子
+                        particleInterval = setInterval(() => {
+                            createParticles(this, this.style.backgroundColor);
+                        }, 300); // 每300毫秒产生一次粒子
+                    });
+                    
+                    element.addEventListener('mouseleave', function() {
+                        // 鼠标离开时停止产生粒子
+                        clearInterval(particleInterval);
+                    });
+                    
+                    group.appendChild(element);
+                }
+                
+                container.appendChild(group);
+                
+                // 动画结束后移除组
+                setTimeout(() => {
+                    if (group.parentNode) {
+                        group.parentNode.removeChild(group);
+                    }
+                }, 8000);
+                
+            }, 1500); // 每1.5秒创建一个新的圆形组
+        }
+
+        // 创建粒子效果
+        function createParticles(element, color) {
+            const container = document.getElementById('container');
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // 创建8个粒子
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.backgroundColor = color;
+                
+                // 随机大小
+                const size = Math.random() * 8 + 4;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                // 随机位置偏移
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 60 + 30;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                // 设置动画变量
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+                
+                // 初始位置
+                particle.style.left = `${centerX - size/2}px`;
+                particle.style.top = `${centerY - size/2}px`;
+                
+                // 添加动画
+                particle.style.animation = `particle-animation ${Math.random() * 0.8 + 0.4}s ease-out forwards`;
+                
+                container.appendChild(particle);
+                
+                // 动画结束后移除粒子
+                setTimeout(() => {
+                    particle.remove();
+                }, 1000);
+            }
+        }
+
+        // 切换模式
+        function toggleMode() {
+            currentMode = currentMode === 1 ? 2 : 1;
+            
+            if (currentMode === 1) {
+                createBlessings();
+            } else {
+                createCircleBlessings();
+            }
+        }
+
+        // 初始化
+        window.addEventListener('load', () => {
+            createBlessings(); // 默认爱心模式
+        });
+        
+        window.addEventListener('resize', () => {
+            if (currentMode === 1) {
+                createBlessings();
+            }
+            // 圆形前进模式不需要响应窗口大小变化
+        });
+        
+        // 点击背景切换模式
+        document.getElementById('container').addEventListener('click', function(e) {
+            if (e.target === this) {
+                toggleMode();
+            }
+        });
+    </script>
+</body>
+</html>
